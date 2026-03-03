@@ -6,7 +6,6 @@ import {
   Modal,
   Form,
   Input,
-  DatePicker,
   Space,
   message,
   Typography,
@@ -29,137 +28,122 @@ const ClientsPage = () => {
   const [editing, setEditing] = useState<Client | null>(null);
   const [form] = Form.useForm();
 
+  // ✅ Cargar clientes
   const fetchClients = async () => {
-    const res = await getClients();
-    setClients(res.data);
+    try {
+      const res = await getClients();
+
+      console.log("Respuesta backend:", res.data);
+
+      if (Array.isArray(res.data)) {
+        setClients(res.data);
+      } else {
+        console.error("El backend no devolvió un array:", res.data);
+        setClients([]);
+        message.error("Formato de datos incorrecto");
+      }
+    } catch (error) {
+      console.error("Error completo:", error);
+      message.error("Error al conectar con el backend");
+    }
   };
 
   useEffect(() => {
     fetchClients();
   }, []);
 
+  // ✅ Guardar (crear / actualizar)
   const handleSubmit = async () => {
-  const values = await form.validateFields();
-  console.log("EDITING:", editing);
+    const values = await form.validateFields();
 
-  try {
-    if (editing?.id) {
-      await updateClient(editing.id, values);
-      message.success("Cliente actualizado");
-    } else {
-      await createClient(values);
-      message.success("Cliente creado correctamente");
-    }
-
-    setOpen(false);
-    form.resetFields();
-    fetchClients();
-  } catch (error) {
-    console.error(error);
-    message.error("Error al guardar el cliente");
-  }
-};
-
-const handleDelete = (id: number) => {
-  Modal.confirm({
-    title: "¿Eliminar cliente?",
-    content: "Esta acción no se puede deshacer.",
-    okText: "Sí, eliminar",
-    okType: "danger",
-    cancelText: "Cancelar",
-    onOk: async () => {
-      try {
-        await deleteClient(id);
-        message.success("Cliente eliminado correctamente");
-        fetchClients();
-      } catch (error) {
-        message.error("Error al eliminar el cliente");
+    try {
+      if (editing?.id) {
+        await updateClient(editing.id, values);
+        message.success("Cliente actualizado correctamente");
+      } else {
+        await createClient(values);
+        message.success("Cliente creado correctamente");
       }
-    },
-  });
-};
+
+      setOpen(false);
+      setEditing(null);
+      form.resetFields();
+      fetchClients();
+    } catch (error) {
+      console.error(error);
+      message.error("Error al guardar el cliente");
+    }
+  };
+
+  // ✅ Eliminar
+  const handleDelete = (id: number) => {
+    Modal.confirm({
+      title: "¿Eliminar cliente?",
+      content: "Esta acción no se puede deshacer.",
+      okText: "Sí, eliminar",
+      okType: "danger",
+      cancelText: "Cancelar",
+      onOk: async () => {
+        try {
+          await deleteClient(id);
+          message.success("Cliente eliminado correctamente");
+          fetchClients();
+        } catch (error) {
+          console.error(error);
+          message.error("Error al eliminar el cliente");
+        }
+      },
+    });
+  };
+
+  // ✅ Columnas tabla
   const columns = [
-  { 
-    title: "Nombre", 
-    dataIndex: "nombre",
-    key: "nombre",
-    width: 120,
-    responsive: ["xs", "sm", "md", "lg", "xl"] as any,
-  },
-  { 
-    title: "Apellido", 
-    dataIndex: "apellido",
-    key: "apellido",
-    width: 120,
-    responsive: ["sm", "md", "lg", "xl"] as any,
-  },
-  { 
-    title: "Correo", 
-    dataIndex: "correo",
-    key: "correo",
-    width: 180,
-    responsive: ["md", "lg", "xl"] as any,
-  },
-  { 
-    title: "Teléfono", 
-    dataIndex: "telefono",
-    key: "telefono",
-    width: 110,
-    responsive: ["lg", "xl"] as any,
-  },
-  {
-    title: "Fecha Registro",
-    dataIndex: "fechaRegistro",
-    key: "fechaRegistro",
-    width: 140,
-    responsive: ["xl"] as any,
-    render: (fecha: string) => fecha ? dayjs(fecha).format("DD/MM/YYYY HH:mm") : "-",
-  },
-  {
-    title: "Acciones",
-    key: "acciones",
-    fixed: "right" as any,
-    width: 200,
-    render: (_: any, record: Client) => (
-      <Space size="small">
-        <Button
-          type="primary"
-          icon={<EditOutlined />}
-          size="small"
-          onClick={() => {
-            setEditing(record);
+    { title: "Nombre", dataIndex: "nombre", key: "nombre" },
+    { title: "Apellido", dataIndex: "apellido", key: "apellido" },
+    { title: "Correo", dataIndex: "correo", key: "correo" },
+    { title: "Teléfono", dataIndex: "telefono", key: "telefono" },
+    {
+      title: "Fecha Registro",
+      dataIndex: "fechaRegistro",
+      key: "fechaRegistro",
+      render: (fecha: string) =>
+        fecha ? dayjs(fecha).format("DD/MM/YYYY HH:mm") : "-",
+    },
+    {
+      title: "Acciones",
+      key: "acciones",
+      render: (_: any, record: Client) => (
+        <Space>
+          <Button
+            type="primary"
+            icon={<EditOutlined />}
+            size="small"
+            onClick={() => {
+              setEditing(record);
+              form.setFieldsValue(record);
+              setOpen(true);
+            }}
+          >
+            Editar
+          </Button>
 
-            form.setFieldsValue({
-              nombre: record.nombre,
-              apellido: record.apellido,
-              identificacion: record.identificacion,
-              telefono: record.telefono,
-              correo: record.correo,
-            });
-
-            setOpen(true);
-          }}
-        >
-          Editar
-        </Button>
-
-        <Button
-          danger
-          icon={<DeleteOutlined />}
-          size="small"
-          onClick={() => handleDelete(record.id!)}
-        >
-          Eliminar
-        </Button>
-      </Space>
-    ),
-  },
-];
+          <Button
+            danger
+            icon={<DeleteOutlined />}
+            size="small"
+            onClick={() => handleDelete(record.id!)}
+          >
+            Eliminar
+          </Button>
+        </Space>
+      ),
+    },
+  ];
 
   return (
-    <div style={{ padding: "16px" }}>
+    <div style={{ padding: 16 }}>
       <Card
-        title={<Title level={3} style={{ margin: 0 }}>Gestión de Clientes</Title>}
+        title={<Title level={3}>Gestión de Clientes</Title>}
         extra={
           <Button
             type="primary"
@@ -173,75 +157,71 @@ const handleDelete = (id: number) => {
             Nuevo Cliente
           </Button>
         }
-        bodyStyle={{ padding: "0" }}
       >
-        <Table 
-          rowKey="id" 
-          columns={columns} 
+        <Table
+          rowKey="id"
+          columns={columns}
           dataSource={clients}
-          scroll={{ x: 600 }}
           pagination={{
             pageSize: 10,
             showSizeChanger: true,
-            showTotal: (total, range) => `${range[0]}-${range[1]} de ${total} clientes`,
-            responsive: true,
+            showTotal: (t) => `Total: ${t} clientes`,
           }}
         />
 
-      <Modal
-  title={editing ? "Editar Cliente" : "Nuevo Cliente"}
-  open={open}
-  onOk={handleSubmit}
-  onCancel={() => {
-    setOpen(false);
-    setEditing(null);
-    form.resetFields();
-  }}
-  okText={editing ? "Actualizar" : "Guardar"}
->
-       <Form form={form} layout="vertical">
-        <Form.Item
-          name="nombre"
-          label="Nombre"
-          rules={[{ required: true, message: "Ingrese el nombre" }]}
+        <Modal
+          title={editing ? "Editar Cliente" : "Nuevo Cliente"}
+          open={open}
+          onOk={handleSubmit}
+          onCancel={() => {
+            setOpen(false);
+            setEditing(null);
+            form.resetFields();
+          }}
         >
-          <Input />
-        </Form.Item>
+          <Form form={form} layout="vertical">
+            <Form.Item
+              name="nombre"
+              label="Nombre"
+              rules={[{ required: true }]}
+            >
+              <Input />
+            </Form.Item>
 
-        <Form.Item
-          name="apellido"
-          label="Apellido"
-          rules={[{ required: true, message: "Ingrese el apellido" }]}
-        >
-          <Input />
-        </Form.Item>
+            <Form.Item
+              name="apellido"
+              label="Apellido"
+              rules={[{ required: true }]}
+            >
+              <Input />
+            </Form.Item>
 
-        <Form.Item
-          name="identificacion"
-          label="Identificación"
-          rules={[{ required: true, message: "Ingrese la identificación" }]}
-        >
-          <Input />
-        </Form.Item>
+            <Form.Item
+              name="identificacion"
+              label="Identificación"
+              rules={[{ required: true }]}
+            >
+              <Input />
+            </Form.Item>
 
-        <Form.Item
-          name="telefono"
-          label="Teléfono"
-          rules={[{ required: true, message: "Ingrese el teléfono" }]}
-        >
-          <Input />
-        </Form.Item>
+            <Form.Item
+              name="telefono"
+              label="Teléfono"
+              rules={[{ required: true }]}
+            >
+              <Input />
+            </Form.Item>
 
-        <Form.Item
-          name="correo"
-          label="Correo"
-          rules={[{ required: true, message: "Ingrese el correo" }]}
-        >
-          <Input />
-        </Form.Item>
-      </Form>
-      </Modal>
-    </Card>
+            <Form.Item
+              name="correo"
+              label="Correo"
+              rules={[{ required: true }]}
+            >
+              <Input />
+            </Form.Item>
+          </Form>
+        </Modal>
+      </Card>
     </div>
   );
 };
